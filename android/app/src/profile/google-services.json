@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "828240171048",
+    "project_id": "bisma-ed323",
+    "storage_bucket": "bisma-ed323.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:828240171048:android:8cc8482c635348d201251d",
+        "android_client_info": {
+          "package_name": "com.example.sopir"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB_Ou3hZ6ANgzsHY2wIbX1epn_L6cxbjI8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:828240171048:android:ab30395125555d6401251d",
+        "android_client_info": {
+          "package_name": "com.example.sopir"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB_Ou3hZ6ANgzsHY2wIbX1epn_L6cxbjI8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
