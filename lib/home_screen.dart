@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'bbm_screen.dart';
 import 'trash_screen.dart';
 import 'login_screen.dart';
+import 'history_screen.dart'; // Import halaman history
 import 'app_data.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -309,7 +310,13 @@ class _HomeScreenState extends State<HomeScreen> {
                       style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                     ),
                     GestureDetector(
-                      onTap: () {},
+                      onTap: () {
+                        // Mengarahkan ke menu History ketika "Lihat Semua" diklik
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const HistoryScreen()),
+                        );
+                      },
                       child: const Text(
                         'Lihat Semua',
                         style: TextStyle(color: Color(0xFF22C55E), fontWeight: FontWeight.w600),

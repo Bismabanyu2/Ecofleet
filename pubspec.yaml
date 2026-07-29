@@ -29,6 +29,13 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.14.1
 
 flutter:
   uses-material-design: true
+
+# Konfigurasi Logo Aplikasi
+flutter_launcher_icons:
+  image_path: "ecofleet.png" # Diarahkan ke nama file ecofleet.png
+  android: true
+  ios: true
