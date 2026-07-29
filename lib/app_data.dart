@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -7,12 +8,16 @@ class ActivityModel {
   final String time;
   final String detail;
   final int iconCode;
+  final String? imageBase64;
+  final String nomorKendaraan;
 
   ActivityModel({
     required this.title,
     required this.time,
     required this.detail,
     required this.iconCode,
+    this.imageBase64,
+    required this.nomorKendaraan,
   });
 
   Map<String, dynamic> toJson() => {
@@ -20,6 +25,8 @@ class ActivityModel {
         'time': time,
         'detail': detail,
         'iconCode': iconCode,
+        'imageBase64': imageBase64,
+        'nomorKendaraan': nomorKendaraan,
       };
 
   factory ActivityModel.fromJson(Map<String, dynamic> json) => ActivityModel(
@@ -27,6 +34,8 @@ class ActivityModel {
         time: json['time'] ?? '',
         detail: json['detail'] ?? '',
         iconCode: json['iconCode'] ?? Icons.history.codePoint,
+        imageBase64: json['imageBase64'],
+        nomorKendaraan: json['nomorKendaraan'] ?? '-',
       );
 }
 
@@ -36,11 +45,7 @@ class AppData extends ChangeNotifier {
   String nip = 'EMP-2024-089';
   String kontak = '+62 812-3456-7890';
   String fotoProfil = 'https://i.pravatar.cc/150?img=12';
-  
-  // Variabel untuk menyimpan string Base64 gambar profil
   String? fotoBase64; 
-
-  // Tambahan variabel nomor kendaraan
   String nomorKendaraan = "B 1234 ABC"; 
 
   List<ActivityModel> activities = [];
@@ -48,11 +53,6 @@ class AppData extends ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  AppData() {
-    // Jangan panggil loadUserData() secara langsung di constructor jika belum login
-  }
-
-  // Ambil data profil & aktivitas dari Firestore berdasarkan User yang sedang Login
   Future<void> loadUserData() async {
     User? user = _auth.currentUser;
     if (user != null) {
@@ -65,31 +65,58 @@ class AppData extends ChangeNotifier {
           nip = data['nip'] ?? 'EMP-2024-089';
           kontak = data['kontak'] ?? '+62 812-3456-7890';
           fotoProfil = data['fotoProfil'] ?? 'https://i.pravatar.cc/150?img=12';
-          fotoBase64 = data['fotoBase64']; // Ambil string base64 dari database
+          fotoBase64 = data['fotoBase64'];
           nomorKendaraan = data['nomorKendaraan'] ?? 'B 1234 ABC';
         }
 
-        // Ambil riwayat aktivitas dari sub-koleksi Firestore
-        QuerySnapshot activitySnap = await _firestore
-            .collection('users')
-            .doc(user.uid)
-            .collection('activities')
-            .get();
+        // --- CEK APAKAH YANG LOGIN ADALAH ADMIN ---
+        if (user.email == 'admin@ecofleet.com') {
+          activities = [];
+          QuerySnapshot allUsersSnapshot = await _firestore.collection('users').get();
+          
+          for (var userDoc in allUsersSnapshot.docs) {
+            QuerySnapshot activitySnap = await _firestore
+                .collection('users')
+                .doc(userDoc.id)
+                .collection('activities')
+                .get();
 
-        if (activitySnap.docs.isNotEmpty) {
-          activities = activitySnap.docs
-              .map((e) => ActivityModel.fromJson(e.data() as Map<String, dynamic>))
-              .toList();
+            for (var actDoc in activitySnap.docs) {
+              final data = actDoc.data() as Map<String, dynamic>;
+              activities.add(ActivityModel(
+                title: data['title'] ?? '',
+                time: data['time'] ?? '',
+                detail: data['detail'] ?? '',
+                iconCode: data['iconCode'] ?? Icons.history.codePoint,
+                imageBase64: data.containsKey('imageBase64') ? data['imageBase64'] : null,
+                nomorKendaraan: data.containsKey('nomorKendaraan') ? data['nomorKendaraan'] : '-',
+              ));
+            }
+          }
         } else {
-          activities = [
-            ActivityModel(
-              title: 'Input BBM Berhasil',
-              time: 'Tadi, 08:30 WIB',
-              detail: '45 Liter',
-              iconCode: Icons.local_gas_station.codePoint,
-            ),
-          ];
+          QuerySnapshot activitySnap = await _firestore
+              .collection('users')
+              .doc(user.uid)
+              .collection('activities')
+              .get();
+
+          if (activitySnap.docs.isNotEmpty) {
+            activities = activitySnap.docs.map((e) {
+              final data = e.data() as Map<String, dynamic>;
+              return ActivityModel(
+                title: data['title'] ?? '',
+                time: data['time'] ?? '',
+                detail: data['detail'] ?? '',
+                iconCode: data['iconCode'] ?? Icons.history.codePoint,
+                imageBase64: data.containsKey('imageBase64') ? data['imageBase64'] : null,
+                nomorKendaraan: data.containsKey('nomorKendaraan') ? data['nomorKendaraan'] : '-',
+              );
+            }).toList();
+          } else {
+            activities = [];
+          }
         }
+
         notifyListeners();
       } catch (e) {
         debugPrint("Gagal memuat data: $e");
@@ -97,7 +124,6 @@ class AppData extends ChangeNotifier {
     }
   }
 
-  // Update profil secara online ke Firestore (termasuk fotoBase64)
   Future<void> updateProfile({
     required String newNama,
     required String newJabatan,
@@ -121,14 +147,13 @@ class AppData extends ChangeNotifier {
         'nip': nip,
         'kontak': kontak,
         'fotoProfil': fotoProfil,
-        'fotoBase64': fotoBase64, // Simpan string Base64 ke Firestore
+        'fotoBase64': fotoBase64,
       }, SetOptions(merge: true));
     }
 
     notifyListeners();
   }
 
-  // Fungsi update nomor kendaraan
   Future<void> updateKendaraan(String newKendaraan) async {
     nomorKendaraan = newKendaraan;
     
@@ -142,17 +167,39 @@ class AppData extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Tambah aktivitas dan simpan ke Firestore
-  Future<void> addActivity(ActivityModel activity) async {
+  void addActivity(ActivityModel activity) {
     activities.insert(0, activity);
     
     User? user = _auth.currentUser;
     if (user != null) {
-      await _firestore
+      _firestore
           .collection('users')
           .doc(user.uid)
           .collection('activities')
           .add(activity.toJson());
+    }
+
+    notifyListeners();
+  }
+
+  // --- FUNGSI CRUD: DELETE (Menghapus aktivitas dari list & Firestore) ---
+  void removeActivity(ActivityModel activity) {
+    activities.remove(activity);
+    
+    User? user = _auth.currentUser;
+    if (user != null) {
+      _firestore
+          .collection('users')
+          .doc(user.uid)
+          .collection('activities')
+          .where('time', isEqualTo: activity.time)
+          .where('detail', isEqualTo: activity.detail)
+          .get()
+          .then((snapshot) {
+        for (var doc in snapshot.docs) {
+          doc.reference.delete();
+        }
+      });
     }
 
     notifyListeners();

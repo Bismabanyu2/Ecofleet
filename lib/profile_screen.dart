@@ -1,8 +1,10 @@
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
 import 'app_data.dart';
+import 'login_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -121,6 +123,41 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  // --- FUNGSI LOGOUT KELUAR AKUN ---
+  void _showLogoutDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Keluar Akun'),
+          content: const Text('Apakah Anda yakin ingin keluar dari aplikasi EcoFleet?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Batal', style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              onPressed: () async {
+                // Logout dari Firebase Auth
+                await FirebaseAuth.instance.signOut();
+                if (!context.mounted) return;
+                
+                // Kembali ke halaman Login dan hapus semua riwayat navigasi sebelumnya
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (context) => const LoginScreen()),
+                  (route) => false,
+                );
+              },
+              child: const Text('Keluar', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
@@ -153,9 +190,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ],
             ),
             actions: [
+              // IKON BERGERIGI (SETTINGS) DI KANAN ATAS UNTUK LOGOUT
               IconButton(
                 icon: const Icon(Icons.settings_outlined, color: Colors.black),
-                onPressed: () {},
+                onPressed: () => _showLogoutDialog(context),
+                tooltip: 'Pengaturan / Keluar',
               ),
             ],
           ),

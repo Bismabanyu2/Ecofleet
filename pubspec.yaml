@@ -12,7 +12,7 @@ dependencies:
     sdk: flutter
 
   cupertino_icons: ^1.0.8
-  shared_preferences: ^2.2.2    # Penyimpanan lokal universal (Web & Mobile)
+  shared_preferences: ^2.2.2
   intl: ^0.18.1
   sqflite: ^2.4.0
   path: ^1.9.1
@@ -22,6 +22,8 @@ dependencies:
   firebase_auth: ^4.17.8
   cloud_firestore: ^4.15.8
   image_picker: ^1.2.2
+  pdf: ^3.10.4
+  printing: ^5.12.0
 
 dev_dependencies:
   flutter_test:

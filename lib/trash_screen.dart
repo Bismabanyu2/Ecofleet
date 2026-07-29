@@ -1,5 +1,7 @@
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart'; // <-- Cukup gunakan import ini saja
+import 'package:image_picker/image_picker.dart';
 import 'app_data.dart';
 
 class TrashScreen extends StatefulWidget {
@@ -12,6 +14,7 @@ class TrashScreen extends StatefulWidget {
 class _TrashScreenState extends State<TrashScreen> {
   final TextEditingController _volumeController = TextEditingController();
   final TextEditingController _sopirController = TextEditingController();
+  final TextEditingController _operatorController = TextEditingController();
   
   String? _selectedJenisSampah;
   final List<String> _jenisSampahList = [
@@ -21,7 +24,10 @@ class _TrashScreenState extends State<TrashScreen> {
     'Sampah Campur / Residu'
   ];
 
-  XFile? _selectedImage; // <-- 2. Variabel penampung file gambar
+  String? _selectedShift;
+  final List<String> _shiftList = ['Pagi', 'Malam'];
+
+  XFile? _selectedImage; 
   final ImagePicker _picker = ImagePicker();
 
   String _formattedTime = '';
@@ -49,7 +55,6 @@ class _TrashScreenState extends State<TrashScreen> {
     return months[month - 1];
   }
 
-  // 3. Fungsi Asli untuk Membuka Galeri/File Manager
   Future<void> _pickImage() async {
     final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
     if (image != null) {
@@ -62,19 +67,37 @@ class _TrashScreenState extends State<TrashScreen> {
     }
   }
 
-  void _simpanData() {
-    if (_volumeController.text.isEmpty || _selectedJenisSampah == null) {
+  Future<void> _simpanData() async {
+    if (_volumeController.text.isEmpty || _selectedJenisSampah == null || _selectedShift == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Volume dan Jenis Sampah wajib diisi/dipilih!'), backgroundColor: Colors.red),
+        const SnackBar(content: Text('Volume, Jenis Sampah, dan Shift wajib diisi/dipilih!'), backgroundColor: Colors.red),
       );
       return;
+    }
+
+    String jenisSingkat = _selectedJenisSampah!.split(' ')[0];
+    String operator = _operatorController.text.isNotEmpty ? _operatorController.text : "-";
+
+    String? imageBase64String;
+    if (_selectedImage != null) {
+      try {
+        Uint8List imageBytes = await _selectedImage!.readAsBytes();
+        if (imageBytes.isNotEmpty) {
+          imageBase64String = base64Encode(imageBytes);
+          debugPrint("SUKSES: Gambar Sampah berhasil diubah ke Base64");
+        }
+      } catch (e) {
+        debugPrint("GAGAL membaca byte gambar sampah: $e");
+      }
     }
 
     appData.addActivity(ActivityModel(
       title: 'Pembuangan Sampah Berhasil',
       time: _formattedTime,
-      detail: '${_volumeController.text} Kg (${_selectedJenisSampah!.split(' ')[0]})',
+      detail: '${_volumeController.text} Kg ($jenisSingkat) - Shift $_selectedShift - Op: $operator',
       iconCode: Icons.delete_sweep.codePoint,
+      imageBase64: imageBase64String,
+      nomorKendaraan: appData.nomorKendaraan,
     ));
 
     ScaffoldMessenger.of(context).showSnackBar(
@@ -149,6 +172,50 @@ class _TrashScreenState extends State<TrashScreen> {
                   ),
                   const SizedBox(height: 16),
 
+                  const Text('Nama Operator', style: TextStyle(fontWeight: FontWeight.w500, fontSize: 13)),
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: _operatorController,
+                    decoration: InputDecoration(
+                      prefixIcon: const Icon(Icons.badge_outlined, color: Colors.grey),
+                      hintText: 'Masukkan nama operator',
+                      filled: true,
+                      fillColor: Colors.grey.shade100,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  const Text('Shift Kerja', style: TextStyle(fontWeight: FontWeight.w500, fontSize: 13)),
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.grey.shade300),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: _selectedShift,
+                        hint: const Text('Pilih Shift (Pagi / Malam)', style: TextStyle(color: Colors.grey, fontSize: 14)),
+                        isExpanded: true,
+                        items: _shiftList.map((String value) {
+                          return DropdownMenuItem<String>(
+                            value: value,
+                            child: Text(value, style: const TextStyle(fontSize: 14)),
+                          );
+                        }).toList(),
+                        onChanged: (newValue) {
+                          setState(() {
+                            _selectedShift = newValue;
+                          });
+                        },
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
                   const Text('Volume Sampah (Kg)', style: TextStyle(fontWeight: FontWeight.w500, fontSize: 13)),
                   const SizedBox(height: 6),
                   TextField(
@@ -216,38 +283,87 @@ class _TrashScreenState extends State<TrashScreen> {
                   const Text('Bukti Foto Pembuangan', style: TextStyle(fontWeight: FontWeight.w500, fontSize: 13)),
                   const SizedBox(height: 6),
                   
-                  // 4. Widget GestureDetector Upload Diganti Disini
+                  // KOTAK UPLOAD DENGAN PREVIEW GAMBAR
                   GestureDetector(
                     onTap: _pickImage,
                     child: Container(
                       width: double.infinity,
-                      padding: const EdgeInsets.symmetric(vertical: 24),
+                      padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
                         color: Colors.grey.shade50,
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: Colors.grey.shade300),
                       ),
-                      child: Column(
-                        children: [
-                          const Icon(Icons.camera_alt_outlined, color: Color(0xFF22C55E), size: 36),
-                          const SizedBox(height: 8),
-                          Text(
-                            _selectedImage == null 
-                                ? 'Upload Foto Bukti Timbangan/Sampah' 
-                                : 'Terpilih: ${_selectedImage!.name}',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold, 
-                              fontSize: 13, 
-                              color: _selectedImage == null ? Colors.black : Colors.green,
+                      child: _selectedImage == null
+                          ? Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: const [
+                                SizedBox(height: 12),
+                                Icon(Icons.camera_alt_outlined, color: Color(0xFF22C55E), size: 36),
+                                SizedBox(height: 8),
+                                Text(
+                                  'Upload Foto Bukti Timbangan/Sampah',
+                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.black),
+                                  textAlign: TextAlign.center,
+                                ),
+                                SizedBox(height: 2),
+                                Text('Klik untuk ambil dari galeri/folder', style: TextStyle(color: Colors.grey, fontSize: 11)),
+                                SizedBox(height: 12),
+                              ],
+                            )
+                          : Column(
+                              children: [
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: kIsWeb
+                                      ? Image.network(
+                                          _selectedImage!.path,
+                                          height: 160,
+                                          width: double.infinity,
+                                          fit: BoxFit.cover,
+                                        )
+                                      : FutureBuilder<Uint8List>(
+                                          future: _selectedImage!.readAsBytes(),
+                                          builder: (context, snapshot) {
+                                            if (snapshot.connectionState == ConnectionState.done && snapshot.hasData) {
+                                              return Image.memory(
+                                                snapshot.data!,
+                                                height: 160,
+                                                width: double.infinity,
+                                                fit: BoxFit.cover,
+                                              );
+                                            }
+                                            return const SizedBox(
+                                              height: 160,
+                                              child: Center(child: CircularProgressIndicator()),
+                                            );
+                                          },
+                                        ),
+                                ),
+                                const SizedBox(height: 8),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    const Icon(Icons.check_circle, color: Colors.green, size: 16),
+                                    const SizedBox(width: 4),
+                                    Flexible(
+                                      child: Text(
+                                        'Terpilih: ${_selectedImage!.name}',
+                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.green),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    TextButton.icon(
+                                      onPressed: _pickImage,
+                                      icon: const Icon(Icons.edit, size: 14),
+                                      label: const Text('Ganti', style: TextStyle(fontSize: 12)),
+                                      style: TextButton.styleFrom(foregroundColor: Colors.blue),
+                                    ),
+                                  ],
+                                ),
+                              ],
                             ),
-                            textAlign: TextAlign.center,
-                          ),
-                          if (_selectedImage == null) ...[
-                            const SizedBox(height: 2),
-                            const Text('Klik untuk ambil dari galeri/folder', style: TextStyle(color: Colors.grey, fontSize: 11)),
-                          ]
-                        ],
-                      ),
                     ),
                   ),
                   const SizedBox(height: 20),

@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'home_screen.dart';
@@ -105,15 +107,88 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   }
 }
 
-// Halaman History / Lihat Semua Aktivitas
-class HistoryScreen extends StatelessWidget {
+// Halaman History / Lihat Semua Aktivitas (Sudah Diperbarui dengan Thumbnail & Tombol Hapus)
+class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
+
+  @override
+  State<HistoryScreen> createState() => _HistoryScreenState();
+}
+
+class _HistoryScreenState extends State<HistoryScreen> {
+  // Fungsi untuk menampilkan pop-up preview gambar ukuran penuh saat thumbnail ditekan
+  void _showImagePreview(BuildContext context, String? imageBase64, String title) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          content: SizedBox(
+            width: double.maxFinite,
+            height: 350,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: imageBase64 != null && imageBase64.isNotEmpty
+                  ? Image.memory(
+                      base64Decode(imageBase64),
+                      fit: BoxFit.cover,
+                    )
+                  : const Center(
+                      child: Text(
+                        'Tidak ada gambar bukti yang dilampirkan.',
+                        style: TextStyle(color: Colors.grey),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Tutup', style: TextStyle(color: Color(0xFF22C55E))),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // Fungsi konfirmasi hapus riwayat (CRUD: Delete)
+  void _confirmDelete(BuildContext context, ActivityModel activity) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Hapus Riwayat'),
+        content: const Text('Apakah Anda yakin ingin menghapus riwayat aktivitas ini?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Batal', style: TextStyle(color: Colors.grey)),
+          ),
+          TextButton(
+            onPressed: () {
+              setState(() {
+                appData.removeActivity(activity);
+              });
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Riwayat berhasil dihapus'), backgroundColor: Colors.red),
+              );
+            },
+            child: const Text('Hapus', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: appData,
       builder: (context, child) {
+        final activities = appData.activities;
+
         return Scaffold(
           appBar: AppBar(
             backgroundColor: const Color(0xFFF8F9FA),
@@ -123,54 +198,93 @@ class HistoryScreen extends StatelessWidget {
               style: TextStyle(color: Color(0xFF22C55E), fontWeight: FontWeight.bold),
             ),
           ),
-          body: ListView.builder(
-            padding: const EdgeInsets.all(16.0),
-            itemCount: appData.activities.length,
-            itemBuilder: (context, index) {
-              final item = appData.activities[index];
-              return Container(
-                margin: const EdgeInsets.only(bottom: 12),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.grey.shade200),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
+          body: activities.isEmpty
+              ? const Center(
+                  child: Text(
+                    'Belum ada riwayat aktivitas.',
+                    style: TextStyle(color: Colors.grey, fontSize: 14),
+                  ),
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.all(16.0),
+                  itemCount: activities.length,
+                  itemBuilder: (context, index) {
+                    final item = activities[index];
+                    final hasImage = item.imageBase64 != null && item.imageBase64!.isNotEmpty;
+
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.green.shade50,
-                        shape: BoxShape.circle,
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.grey.shade200),
                       ),
-                      child: Icon(
-                        IconData(item.iconCode, fontFamily: 'MaterialIcons'),
-                        color: const Color(0xFF22C55E),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          Text(
-                            item.title,
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                          // 1. Ikon Status di Kiri
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: Colors.green.shade50,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              IconData(item.iconCode, fontFamily: 'MaterialIcons'),
+                              color: const Color(0xFF22C55E),
+                              size: 20,
+                            ),
                           ),
-                          const SizedBox(height: 2),
-                          Text(
-                            '${item.time} • ${item.detail}',
-                            style: const TextStyle(color: Colors.grey, fontSize: 12),
+                          const SizedBox(width: 12),
+                          
+                          // 2. Teks Keterangan di Tengah
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  item.title,
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  '${item.time} • ${item.detail}',
+                                  style: const TextStyle(color: Colors.grey, fontSize: 12),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+
+                          // 3. Thumbnail Gambar di Kanan (Jika ada)
+                          if (hasImage) ...[
+                            GestureDetector(
+                              onTap: () => _showImagePreview(context, item.imageBase64, item.title),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Image.memory(
+                                  base64Decode(item.imageBase64!),
+                                  width: 45,
+                                  height: 45,
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                          ],
+
+                          // 4. Tombol Hapus (CRUD: Delete) di Pojok Kanan
+                          IconButton(
+                            icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 22),
+                            onPressed: () => _confirmDelete(context, item),
+                            tooltip: 'Hapus Riwayat',
                           ),
                         ],
                       ),
-                    ),
-                  ],
+                    );
+                  },
                 ),
-              );
-            },
-          ),
         );
       },
     );

@@ -4,6 +4,7 @@ import 'app_styles.dart';
 import 'register_screen.dart';
 import 'main.dart';
 import 'app_data.dart';
+import 'admin_dashboard_screen.dart'; // Pastikan di-import
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -34,14 +35,29 @@ class _LoginScreenState extends State<LoginScreen> {
         password: _passwordController.text.trim(),
       );
 
-      // Muat data profil & aktivitas pengguna dari database Firestore
-      await appData.loadUserData();
-
       if (!mounted) return;
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const MainNavigationScreen()),
-      );
+
+      // Cek apakah email yang login adalah akun admin khusus
+      if (_emailController.text.trim() == 'admin@ecofleet.com') {
+        // Muat semua data aktivitas dari seluruh user untuk admin
+        await appData.loadUserData();
+
+        if (!mounted) return;
+        // Masuk ke Tampilan Dashboard Admin
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const AdminDashboardScreen()),
+        );
+      } else {
+        // Muat data profil & aktivitas pengguna dari database Firestore untuk sopir biasa
+        await appData.loadUserData();
+
+        if (!mounted) return;
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const MainNavigationScreen()),
+        );
+      }
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

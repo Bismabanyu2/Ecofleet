@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'bbm_screen.dart';
 import 'trash_screen.dart';
+import 'login_screen.dart';
 import 'app_data.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -14,22 +16,18 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   Timer? _timer;
-  // 9 jam dalam detik = 9 * 3600 = 32400 detik. 
-  // Kita buat contoh awal sisa 8 jam 45 menit (31500 detik) agar langsung terlihat jalan.
   int _secondsRemaining = 31500; 
   bool _isShiftEnded = false;
 
   @override
   void initState() {
     super.initState();
-    // Memulai timer hitung mundur (berkurang 1 detik setiap detik)
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_secondsRemaining > 0) {
         setState(() {
           _secondsRemaining--;
         });
       } else {
-        // Jika waktu sudah habis
         if (!_isShiftEnded) {
           setState(() {
             _isShiftEnded = true;
@@ -47,7 +45,6 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
-  // Fungsi untuk memformat detik menjadi format Jam:Menit:Detik (08:45:00)
   String _formatCountdown(int totalSeconds) {
     int hours = totalSeconds ~/ 3600;
     int minutes = (totalSeconds % 3600) ~/ 60;
@@ -56,7 +53,6 @@ class _HomeScreenState extends State<HomeScreen> {
     return '${hours.toString().padLeft(2, '0')}:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
   }
 
-  // Pop-up ketika waktu shift habis
   void _showShiftEndedDialog() {
     showDialog(
       context: context,
@@ -115,6 +111,41 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  // --- FUNGSI LOGOUT KELUAR AKUN ---
+  void _showLogoutDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Keluar Akun'),
+          content: const Text('Apakah Anda yakin ingin keluar dari aplikasi EcoFleet?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Batal', style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              onPressed: () async {
+                // Logout dari Firebase Auth
+                await FirebaseAuth.instance.signOut();
+                if (!context.mounted) return;
+                
+                // Kembali ke halaman Login dan hapus semua riwayat navigasi sebelumnya
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (context) => const LoginScreen()),
+                  (route) => false,
+                );
+              },
+              child: const Text('Keluar', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
@@ -122,7 +153,6 @@ class _HomeScreenState extends State<HomeScreen> {
       builder: (context, child) {
         final latestActivity = appData.activities.isNotEmpty ? appData.activities.first : null;
 
-        // Logika untuk menampilkan gambar dari Base64, Network, atau Asset di Beranda
         ImageProvider avatarProvider;
         if (appData.fotoBase64 != null && appData.fotoBase64!.isNotEmpty) {
           avatarProvider = MemoryImage(base64Decode(appData.fotoBase64!));
@@ -159,9 +189,11 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
             actions: [
+              // IKON BERGERIGI (SETTINGS) DI KANAN ATAS UNTUK LOGOUT
               IconButton(
                 icon: const Icon(Icons.settings_outlined, color: Colors.green),
-                onPressed: () {},
+                onPressed: () => _showLogoutDialog(context),
+                tooltip: 'Pengaturan / Keluar',
               ),
             ],
           ),
@@ -308,7 +340,6 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
                         const SizedBox(width: 12),
-                        // Dibungkus Expanded agar teks otomatis menyesuaikan lebar layar mobile & tidak overflow
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
