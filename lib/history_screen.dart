@@ -105,7 +105,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                   border: Border.all(color: Colors.grey.shade200),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.02),
+                      color: Colors.black.withValues(alpha: 0.02),
                       blurRadius: 4,
                       offset: const Offset(0, 2),
                     ),
@@ -118,7 +118,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF22C55E).withOpacity(0.1),
+                        color: const Color(0xFF22C55E).withValues(alpha: 0.1),
                         shape: BoxShape.circle,
                       ),
                       child: Icon(

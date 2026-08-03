@@ -17,13 +17,13 @@ dependencies:
   sqflite: ^2.4.0
   path: ^1.9.1
   
-  # Firebase Dependencies
-  firebase_core: ^2.27.0
-  firebase_auth: ^4.17.8
-  cloud_firestore: ^4.15.8
-  image_picker: ^1.2.2
+  # Firebase Dependencies yang sudah diselaraskan
+  firebase_core: ^3.6.0
+  firebase_auth: ^5.3.1
+  cloud_firestore: ^5.4.4
+  image_picker: ^1.1.2
   pdf: ^3.10.4
-  printing: ^5.12.0
+  printing: ^5.13.1
 
 dev_dependencies:
   flutter_test:
@@ -36,6 +36,6 @@ flutter:
 
 # Konfigurasi Logo Aplikasi
 flutter_launcher_icons:
-  image_path: "ecofleet.png" # Diarahkan ke nama file ecofleet.png
+  image_path: "ecofleet.png"
   android: true
   ios: true
