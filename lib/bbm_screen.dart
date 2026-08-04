@@ -18,8 +18,17 @@ class _BbmScreenState extends State<BbmScreen> {
   final TextEditingController _lokasiController = TextEditingController();
   final TextEditingController _pengawasController = TextEditingController();
   
+  // Pilihan Shift
   String? _selectedShift;
   final List<String> _shiftList = ['Pagi', 'Malam'];
+
+  // Pilihan Jenis BBM
+  String? _selectedJenisBbm;
+  final List<String> _jenisBbmList = ['Subsidi', 'Non-Subsidi', 'Pertamina Dex'];
+
+  // Pilihan Jenis Kendaraan
+  String? _selectedJenisKendaraan;
+  final List<String> _jenisKendaraanList = ['Pick Up', 'Truk', 'Cator'];
 
   XFile? _selectedImage; 
   final ImagePicker _picker = ImagePicker();
@@ -30,6 +39,16 @@ class _BbmScreenState extends State<BbmScreen> {
   void initState() {
     super.initState();
     _updateRealtimeTime();
+  }
+
+  @override
+  void dispose() {
+    _literController.dispose();
+    _hargaController.dispose();
+    _sopirController.dispose();
+    _lokasiController.dispose();
+    _pengawasController.dispose();
+    super.dispose();
   }
 
   void _updateRealtimeTime() {
@@ -55,6 +74,7 @@ class _BbmScreenState extends State<BbmScreen> {
       setState(() {
         _selectedImage = image;
       });
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Foto bukti BBM berhasil dipilih!'), duration: Duration(seconds: 1)),
       );
@@ -62,15 +82,17 @@ class _BbmScreenState extends State<BbmScreen> {
   }
 
   Future<void> _simpanData() async {
-    if (_literController.text.isEmpty || _selectedShift == null) {
+    if (_literController.text.isEmpty || _selectedShift == null || _selectedJenisBbm == null || _selectedJenisKendaraan == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Jumlah BBM (Liter) dan Shift wajib diisi/dipilih!'), backgroundColor: Colors.red),
+        const SnackBar(content: Text('Jenis Kendaraan, BBM, Liter, dan Shift wajib diisi/dipilih!'), backgroundColor: Colors.red),
       );
       return;
     }
 
     String lokasi = _lokasiController.text.isNotEmpty ? _lokasiController.text : "SPBU";
+    String sopir = _sopirController.text.isNotEmpty ? _sopirController.text : "-";
     String pengawas = _pengawasController.text.isNotEmpty ? _pengawasController.text : "-";
+    String harga = _hargaController.text.isNotEmpty ? _hargaController.text : "0";
 
     String? imageBase64String;
     if (_selectedImage != null) {
@@ -88,11 +110,13 @@ class _BbmScreenState extends State<BbmScreen> {
     appData.addActivity(ActivityModel(
       title: 'Input BBM Berhasil',
       time: _formattedTime,
-      detail: '${_literController.text} Liter di $lokasi (Shift $_selectedShift - Pengawas: $pengawas)',
+      detail: '[$_selectedJenisKendaraan] ${_literController.text} Liter ($_selectedJenisBbm - Rp $harga) di $lokasi - Shift $_selectedShift - Sopir: $sopir - Pengawas: $pengawas',
       iconCode: Icons.local_gas_station.codePoint,
       imageBase64: imageBase64String,
       nomorKendaraan: appData.nomorKendaraan,
     ));
+
+    if (!mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -152,6 +176,33 @@ class _BbmScreenState extends State<BbmScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // JENIS KENDARAAN
+                  const Text('Jenis Kendaraan', style: TextStyle(fontWeight: FontWeight.w500, fontSize: 13)),
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.grey.shade300),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: _selectedJenisKendaraan,
+                        hint: const Text('Pilih Kendaraan (Pick Up / Truk / Cator)', style: TextStyle(color: Colors.grey, fontSize: 14)),
+                        isExpanded: true,
+                        items: _jenisKendaraanList.map((String value) {
+                          return DropdownMenuItem<String>(
+                            value: value,
+                            child: Text(value, style: const TextStyle(fontSize: 14)),
+                          );
+                        }).toList(),
+                        onChanged: (newValue) => setState(() => _selectedJenisKendaraan = newValue),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
                   const Text('Nama Sopir', style: TextStyle(fontWeight: FontWeight.w500, fontSize: 13)),
                   const SizedBox(height: 6),
                   TextField(
@@ -200,11 +251,34 @@ class _BbmScreenState extends State<BbmScreen> {
                             child: Text(value, style: const TextStyle(fontSize: 14)),
                           );
                         }).toList(),
-                        onChanged: (newValue) {
-                          setState(() {
-                            _selectedShift = newValue;
-                          });
-                        },
+                        onChanged: (newValue) => setState(() => _selectedShift = newValue),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // JENIS BBM
+                  const Text('Jenis BBM', style: TextStyle(fontWeight: FontWeight.w500, fontSize: 13)),
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.grey.shade300),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: _selectedJenisBbm,
+                        hint: const Text('Pilih Jenis BBM (Subsidi / Non-Subsidi / Pertamina Dex)', style: TextStyle(color: Colors.grey, fontSize: 14)),
+                        isExpanded: true,
+                        items: _jenisBbmList.map((String value) {
+                          return DropdownMenuItem<String>(
+                            value: value,
+                            child: Text(value, style: const TextStyle(fontSize: 14)),
+                          );
+                        }).toList(),
+                        onChanged: (newValue) => setState(() => _selectedJenisBbm = newValue),
                       ),
                     ),
                   ),
@@ -275,8 +349,6 @@ class _BbmScreenState extends State<BbmScreen> {
 
                   const Text('Bukti Pengisian', style: TextStyle(fontWeight: FontWeight.w500, fontSize: 13)),
                   const SizedBox(height: 6),
-                  
-                  // KOTAK UPLOAD DENGAN PREVIEW GAMBAR
                   GestureDetector(
                     onTap: _pickImage,
                     child: Container(

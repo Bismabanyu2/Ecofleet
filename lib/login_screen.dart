@@ -91,7 +91,7 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 16),
               const Text('EcoFleet Login', style: AppStyles.titleStyle),
               const SizedBox(height: 4),
-              const Text('Masuk menggunakan akun Firebase Anda', style: AppStyles.subtitleStyle, textAlign: TextAlign.center),
+              const Text('Masuk menggunakan akun anda yang sudah terdaftar', style: AppStyles.subtitleStyle, textAlign: TextAlign.center),
               const SizedBox(height: 32),
 
               Container(

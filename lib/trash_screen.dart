@@ -27,6 +27,10 @@ class _TrashScreenState extends State<TrashScreen> {
   String? _selectedShift;
   final List<String> _shiftList = ['Pagi', 'Malam'];
 
+  // Pilihan Jenis Kendaraan
+  String? _selectedJenisKendaraan;
+  final List<String> _jenisKendaraanList = ['Pick Up', 'Truk', 'Cator'];
+
   XFile? _selectedImage; 
   final ImagePicker _picker = ImagePicker();
 
@@ -36,6 +40,14 @@ class _TrashScreenState extends State<TrashScreen> {
   void initState() {
     super.initState();
     _updateRealtimeTime();
+  }
+
+  @override
+  void dispose() {
+    _volumeController.dispose();
+    _sopirController.dispose();
+    _operatorController.dispose();
+    super.dispose();
   }
 
   void _updateRealtimeTime() {
@@ -61,6 +73,7 @@ class _TrashScreenState extends State<TrashScreen> {
       setState(() {
         _selectedImage = image;
       });
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Foto bukti sampah berhasil dipilih!'), duration: Duration(seconds: 1)),
       );
@@ -68,14 +81,15 @@ class _TrashScreenState extends State<TrashScreen> {
   }
 
   Future<void> _simpanData() async {
-    if (_volumeController.text.isEmpty || _selectedJenisSampah == null || _selectedShift == null) {
+    if (_volumeController.text.isEmpty || _selectedJenisSampah == null || _selectedShift == null || _selectedJenisKendaraan == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Volume, Jenis Sampah, dan Shift wajib diisi/dipilih!'), backgroundColor: Colors.red),
+        const SnackBar(content: Text('Jenis Kendaraan, Volume, Jenis Sampah, dan Shift wajib diisi/dipilih!'), backgroundColor: Colors.red),
       );
       return;
     }
 
     String jenisSingkat = _selectedJenisSampah!.split(' ')[0];
+    String sopir = _sopirController.text.isNotEmpty ? _sopirController.text : "-";
     String operator = _operatorController.text.isNotEmpty ? _operatorController.text : "-";
 
     String? imageBase64String;
@@ -94,11 +108,13 @@ class _TrashScreenState extends State<TrashScreen> {
     appData.addActivity(ActivityModel(
       title: 'Pembuangan Sampah Berhasil',
       time: _formattedTime,
-      detail: '${_volumeController.text} Kg ($jenisSingkat) - Shift $_selectedShift - Op: $operator',
+      detail: '[$_selectedJenisKendaraan] ${_volumeController.text} Kg ($jenisSingkat) - Shift $_selectedShift - Sopir: $sopir - Op: $operator',
       iconCode: Icons.delete_sweep.codePoint,
       imageBase64: imageBase64String,
       nomorKendaraan: appData.nomorKendaraan,
     ));
+
+    if (!mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -158,6 +174,33 @@ class _TrashScreenState extends State<TrashScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // JENIS KENDARAAN
+                  const Text('Jenis Kendaraan', style: TextStyle(fontWeight: FontWeight.w500, fontSize: 13)),
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.grey.shade300),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: _selectedJenisKendaraan,
+                        hint: const Text('Pilih Kendaraan (Pick Up / Truk / Cator)', style: TextStyle(color: Colors.grey, fontSize: 14)),
+                        isExpanded: true,
+                        items: _jenisKendaraanList.map((String value) {
+                          return DropdownMenuItem<String>(
+                            value: value,
+                            child: Text(value, style: const TextStyle(fontSize: 14)),
+                          );
+                        }).toList(),
+                        onChanged: (newValue) => setState(() => _selectedJenisKendaraan = newValue),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
                   const Text('Nama Sopir', style: TextStyle(fontWeight: FontWeight.w500, fontSize: 13)),
                   const SizedBox(height: 6),
                   TextField(
@@ -206,11 +249,7 @@ class _TrashScreenState extends State<TrashScreen> {
                             child: Text(value, style: const TextStyle(fontSize: 14)),
                           );
                         }).toList(),
-                        onChanged: (newValue) {
-                          setState(() {
-                            _selectedShift = newValue;
-                          });
-                        },
+                        onChanged: (newValue) => setState(() => _selectedShift = newValue),
                       ),
                     ),
                   ),
@@ -251,11 +290,7 @@ class _TrashScreenState extends State<TrashScreen> {
                             child: Text(value, style: const TextStyle(fontSize: 14)),
                           );
                         }).toList(),
-                        onChanged: (newValue) {
-                          setState(() {
-                            _selectedJenisSampah = newValue;
-                          });
-                        },
+                        onChanged: (newValue) => setState(() => _selectedJenisSampah = newValue),
                       ),
                     ),
                   ),
@@ -282,8 +317,6 @@ class _TrashScreenState extends State<TrashScreen> {
 
                   const Text('Bukti Foto Pembuangan', style: TextStyle(fontWeight: FontWeight.w500, fontSize: 13)),
                   const SizedBox(height: 6),
-                  
-                  // KOTAK UPLOAD DENGAN PREVIEW GAMBAR
                   GestureDetector(
                     onTap: _pickImage,
                     child: Container(
