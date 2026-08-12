@@ -154,7 +154,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           width: double.maxFinite,
           child: SingleChildScrollView(
             child: Column(
-              mainAxisSize: MainAxisSize.min,
+              mainAxisSize: MainAxisSize.min, // DIBENARKAN DI SINI
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
@@ -282,254 +282,259 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final tpaList = appData.activities
-        .where((act) => act.title.toLowerCase().contains('sampah') || act.title.toLowerCase().contains('tpa'))
-        .toList();
+    return AnimatedBuilder(
+      animation: appData,
+      builder: (context, child) {
+        final tpaList = appData.activities
+            .where((act) => act.title.toLowerCase().contains('sampah') || act.title.toLowerCase().contains('tpa'))
+            .toList();
 
-    final bbmList = appData.activities
-        .where((act) => act.title.toLowerCase().contains('bbm'))
-        .toList();
+        final bbmList = appData.activities
+            .where((act) => act.title.toLowerCase().contains('bbm'))
+            .toList();
 
-    final serviceList = appData.activities
-        .where((act) => act.title.toLowerCase().contains('servis') || act.title.toLowerCase().contains('service'))
-        .toList();
+        final serviceList = appData.activities
+            .where((act) => act.title.toLowerCase().contains('servis') || act.title.toLowerCase().contains('service'))
+            .toList();
 
-    List<ActivityModel> currentList;
-    String kategoriName;
-    if (_selectedTab == 0) {
-      currentList = tpaList;
-      kategoriName = 'Data_TPA';
-    } else if (_selectedTab == 1) {
-      currentList = bbmList;
-      kategoriName = 'Data_BBM';
-    } else {
-      currentList = serviceList;
-      kategoriName = 'Data_Servis';
-    }
+        List<ActivityModel> currentList;
+        String kategoriName;
+        if (_selectedTab == 0) {
+          currentList = tpaList;
+          kategoriName = 'Data_TPA';
+        } else if (_selectedTab == 1) {
+          currentList = bbmList;
+          kategoriName = 'Data_BBM';
+        } else {
+          currentList = serviceList;
+          kategoriName = 'Data_Servis';
+        }
 
-    final filteredList = currentList.where((item) {
-      String jenisKendaraan = _getJenisKendaraan(item);
-      String sopirName = _getDriverName(item);
-      
-      return item.detail.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          item.nomorKendaraan.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          jenisKendaraan.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          sopirName.toLowerCase().contains(_searchQuery.toLowerCase());
-    }).toList();
+        final filteredList = currentList.where((item) {
+          String jenisKendaraan = _getJenisKendaraan(item);
+          String sopirName = _getDriverName(item);
+          
+          return item.detail.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+              item.nomorKendaraan.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+              jenisKendaraan.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+              sopirName.toLowerCase().contains(_searchQuery.toLowerCase());
+        }).toList();
 
-    return Scaffold(
-      backgroundColor: const Color(0xFF0F172A),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF1E293B),
-        elevation: 0,
-        title: const Text(
-          'Admin Dashboard',
-          style: TextStyle(color: Color(0xFF22C55E), fontWeight: FontWeight.bold, fontSize: 18),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.picture_as_pdf, color: Color(0xFF22C55E)),
-            tooltip: 'Ekspor PDF',
-            onPressed: () => _exportToPdf(currentList, kategoriName),
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout, color: Colors.redAccent),
-            tooltip: 'Logout',
-            onPressed: () {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => const LoginScreen()),
-              );
-            },
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          // 3 TAB MENU (TPA, BBM, SERVIS)
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-            color: const Color(0xFF1E293B),
-            child: Row(
-              children: [
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () => setState(() => _selectedTab = 0),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      decoration: BoxDecoration(
-                        color: _selectedTab == 0 ? const Color(0xFF22C55E) : const Color(0xFF0F172A),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        'Data TPA',
-                        style: TextStyle(
-                          color: _selectedTab == 0 ? Colors.black : Colors.white70,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () => setState(() => _selectedTab = 1),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      decoration: BoxDecoration(
-                        color: _selectedTab == 1 ? const Color(0xFF22C55E) : const Color(0xFF0F172A),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        'Data BBM',
-                        style: TextStyle(
-                          color: _selectedTab == 1 ? Colors.black : Colors.white70,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () => setState(() => _selectedTab = 2),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      decoration: BoxDecoration(
-                        color: _selectedTab == 2 ? const Color(0xFF22C55E) : const Color(0xFF0F172A),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        'Data Servis',
-                        style: TextStyle(
-                          color: _selectedTab == 2 ? Colors.black : Colors.white70,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+        return Scaffold(
+          backgroundColor: const Color(0xFF0F172A),
+          appBar: AppBar(
+            backgroundColor: const Color(0xFF1E293B),
+            elevation: 0,
+            title: const Text(
+              'Admin Dashboard',
+              style: TextStyle(color: Color(0xFF22C55E), fontWeight: FontWeight.bold, fontSize: 18),
             ),
-          ),
-
-          // PENCARIAN
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: TextField(
-              onChanged: (val) => setState(() => _searchQuery = val),
-              style: const TextStyle(color: Colors.white, fontSize: 14),
-              decoration: InputDecoration(
-                hintText: 'Cari kendaraan, plat, nama, atau detail...',
-                hintStyle: const TextStyle(color: Colors.white38),
-                prefixIcon: const Icon(Icons.search, color: Colors.white38),
-                filled: true,
-                fillColor: const Color(0xFF1E293B),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: BorderSide.none,
-                ),
-                contentPadding: const EdgeInsets.symmetric(vertical: 12),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.picture_as_pdf, color: Color(0xFF22C55E)),
+                tooltip: 'Ekspor PDF',
+                onPressed: () => _exportToPdf(currentList, kategoriName),
               ),
-            ),
+              IconButton(
+                icon: const Icon(Icons.logout, color: Colors.redAccent),
+                tooltip: 'Logout',
+                onPressed: () {
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(builder: (context) => const LoginScreen()),
+                  );
+                },
+              ),
+            ],
           ),
-
-          // LISTVIEW DATA
-          Expanded(
-            child: filteredList.isEmpty
-                ? const Center(
-                    child: Text(
-                      'Belum ada data tersedia',
-                      style: TextStyle(color: Colors.white70, fontSize: 14),
+          body: Column(
+            children: [
+              // 3 TAB MENU (TPA, BBM, SERVIS)
+              Container(
+                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                color: const Color(0xFF1E293B),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => setState(() => _selectedTab = 0),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          decoration: BoxDecoration(
+                            color: _selectedTab == 0 ? const Color(0xFF22C55E) : const Color(0xFF0F172A),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(
+                            'Data TPA',
+                            style: TextStyle(
+                              color: _selectedTab == 0 ? Colors.black : Colors.white70,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    itemCount: filteredList.length,
-                    itemBuilder: (context, index) {
-                      final item = filteredList[index];
-                      
-                      final jenisKendaraan = _getJenisKendaraan(item);
-                      final sopirName = _getDriverName(item);
-
-                      String headerText = '[$jenisKendaraan] ${item.nomorKendaraan.isNotEmpty ? item.nomorKendaraan : "Tanpa Plat"} • Sopir: $sopirName';
-
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF1E293B),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.white10),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => setState(() => _selectedTab = 1),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          decoration: BoxDecoration(
+                            color: _selectedTab == 1 ? const Color(0xFF22C55E) : const Color(0xFF0F172A),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(
+                            'Data BBM',
+                            style: TextStyle(
+                              color: _selectedTab == 1 ? Colors.black : Colors.white70,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          ),
                         ),
-                        child: Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF22C55E).withOpacity(0.1),
-                                shape: BoxShape.circle,
-                              ),
-                              child: Icon(
-                                _selectedTab == 2 ? Icons.build : Icons.local_shipping,
-                                color: const Color(0xFF22C55E),
-                                size: 20,
-                              ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => setState(() => _selectedTab = 2),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          decoration: BoxDecoration(
+                            color: _selectedTab == 2 ? const Color(0xFF22C55E) : const Color(0xFF0F172A),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(
+                            'Data Servis',
+                            style: TextStyle(
+                              color: _selectedTab == 2 ? Colors.black : Colors.white70,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
                             ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    headerText,
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    item.detail,
-                                    style: const TextStyle(color: Colors.white70, fontSize: 12),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    item.time,
-                                    style: const TextStyle(color: Colors.white70, fontSize: 10),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.visibility_outlined, color: Colors.blueAccent, size: 20),
-                              onPressed: () => _showDetailDialog(context, item),
-                              tooltip: 'Lihat Detail & Bukti Foto',
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
-                              onPressed: () => _deleteActivity(item),
-                              tooltip: 'Hapus Data',
-                            ),
-                          ],
+                          ),
                         ),
-                      );
-                    },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // PENCARIAN
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: TextField(
+                  onChanged: (val) => setState(() => _searchQuery = val),
+                  style: const TextStyle(color: Colors.white, fontSize: 14),
+                  decoration: InputDecoration(
+                    hintText: 'Cari kendaraan, plat, nama, atau detail...',
+                    hintStyle: const TextStyle(color: Colors.white38),
+                    prefixIcon: const Icon(Icons.search, color: Colors.white38),
+                    filled: true,
+                    fillColor: const Color(0xFF1E293B),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide.none,
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 12),
                   ),
+                ),
+              ),
+
+              // LISTVIEW DATA
+              Expanded(
+                child: filteredList.isEmpty
+                    ? const Center(
+                        child: Text(
+                          'Belum ada data tersedia',
+                          style: TextStyle(color: Colors.white70, fontSize: 14),
+                        ),
+                      )
+                    : ListView.builder(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        itemCount: filteredList.length,
+                        itemBuilder: (context, index) {
+                          final item = filteredList[index];
+                          
+                          final jenisKendaraan = _getJenisKendaraan(item);
+                          final sopirName = _getDriverName(item);
+
+                          String headerText = '[$jenisKendaraan] ${item.nomorKendaraan.isNotEmpty ? item.nomorKendaraan : "Tanpa Plat"} • Sopir: $sopirName';
+
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 12),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF1E293B),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.white10),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF22C55E).withOpacity(0.1),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(
+                                    _selectedTab == 2 ? Icons.build : Icons.local_shipping,
+                                    color: const Color(0xFF22C55E),
+                                    size: 20,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        headerText,
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        item.detail,
+                                        style: const TextStyle(color: Colors.white70, fontSize: 12),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        item.time,
+                                        style: const TextStyle(color: Colors.white70, fontSize: 10),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.visibility_outlined, color: Colors.blueAccent, size: 20),
+                                  onPressed: () => _showDetailDialog(context, item),
+                                  tooltip: 'Lihat Detail & Bukti Foto',
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
+                                  onPressed: () => _deleteActivity(item),
+                                  tooltip: 'Hapus Data',
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
