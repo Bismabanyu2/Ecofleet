@@ -14,10 +14,10 @@ class AdminDashboardScreen extends StatefulWidget {
 }
 
 class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
-  bool _isTpaView = true;
+  // 0: TPA, 1: BBM, 2: Servis
+  int _selectedTab = 0;
   String _searchQuery = '';
 
-  // Parser Jenis Kendaraan
   String _getJenisKendaraan(ActivityModel item) {
     final detailLower = item.detail.toLowerCase();
     if (detailLower.contains('[pick up]')) return 'Pick Up';
@@ -26,7 +26,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     return 'Kendaraan';
   }
 
-  // Parser Nama Sopir
   String _getDriverName(ActivityModel item) {
     if (item.detail.contains('Sopir:')) {
       final parts = item.detail.split('Sopir:');
@@ -38,7 +37,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     return '-';
   }
 
-  // Parser Nama Operator
   String _getOperatorName(ActivityModel item) {
     if (item.detail.contains('Op:')) {
       final parts = item.detail.split('Op:');
@@ -49,7 +47,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     return '-';
   }
 
-  // Parser Nama Pengawas
   String _getPengawasName(ActivityModel item) {
     if (item.detail.contains('Pengawas:')) {
       final parts = item.detail.split('Pengawas:');
@@ -142,11 +139,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 
   void _showDetailDialog(BuildContext context, ActivityModel item) {
-    bool isTpa = item.title.toLowerCase().contains('sampah') || item.title.toLowerCase().contains('tpa');
     String jenisKendaraan = _getJenisKendaraan(item);
     String sopirName = _getDriverName(item);
-    String secondaryRoleLabel = isTpa ? 'Operator' : 'Pengawas';
-    String secondaryRoleName = isTpa ? _getOperatorName(item) : _getPengawasName(item);
 
     showDialog(
       context: context,
@@ -172,21 +166,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   'Nama Sopir: $sopirName',
                   style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  'Nama $secondaryRoleLabel: $secondaryRoleName',
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
-                ),
                 const SizedBox(height: 8),
                 Text('Waktu: ${item.time}', style: const TextStyle(color: Colors.white70, fontSize: 13)),
                 const SizedBox(height: 8),
-                
-                // DIUBAH MENJADI No. Plat:
                 Text(
                   'No. Plat: ${item.nomorKendaraan.isNotEmpty ? item.nomorKendaraan : "-"}',
                   style: const TextStyle(color: Colors.white, fontSize: 13),
                 ),
-                
                 const SizedBox(height: 8),
                 Text('Detail: ${item.detail}', style: const TextStyle(color: Colors.white70, fontSize: 13)),
                 const SizedBox(height: 12),
@@ -222,7 +208,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     );
   }
 
-  Future<void> _exportToPdf(List<ActivityModel> list, String kategori, bool isTpa) async {
+  Future<void> _exportToPdf(List<ActivityModel> list, String kategori) async {
     final pdf = pw.Document();
     List<List<dynamic>> tableData = [];
 
@@ -230,7 +216,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       final item = list[i];
       String jenisKendaraan = _getJenisKendaraan(item);
       String sopirName = _getDriverName(item);
-      String secondaryRoleName = isTpa ? _getOperatorName(item) : _getPengawasName(item);
 
       pw.Widget imageWidget;
       if (item.imageBase64 != null && item.imageBase64!.isNotEmpty) {
@@ -252,7 +237,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         '${i + 1}',
         jenisKendaraan,
         sopirName,
-        secondaryRoleName,
         item.time,
         item.nomorKendaraan.isNotEmpty ? item.nomorKendaraan : '-',
         item.detail,
@@ -277,7 +261,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               'No', 
               'Kendaraan',
               'Nama Sopir', 
-              isTpa ? 'Nama Operator' : 'Nama Pengawas', 
               'Waktu', 
               'No Plat', 
               'Detail Informasi', 
@@ -285,7 +268,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             ],
             data: tableData,
             cellAlignment: pw.Alignment.centerLeft,
-            cellAlignments: {0: pw.Alignment.center, 7: pw.Alignment.center},
+            cellAlignments: {0: pw.Alignment.center, 6: pw.Alignment.center},
           ),
         ],
       ),
@@ -307,18 +290,31 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         .where((act) => act.title.toLowerCase().contains('bbm'))
         .toList();
 
-    final currentList = _isTpaView ? tpaList : bbmList;
+    final serviceList = appData.activities
+        .where((act) => act.title.toLowerCase().contains('servis') || act.title.toLowerCase().contains('service'))
+        .toList();
+
+    List<ActivityModel> currentList;
+    String kategoriName;
+    if (_selectedTab == 0) {
+      currentList = tpaList;
+      kategoriName = 'Data_TPA';
+    } else if (_selectedTab == 1) {
+      currentList = bbmList;
+      kategoriName = 'Data_BBM';
+    } else {
+      currentList = serviceList;
+      kategoriName = 'Data_Servis';
+    }
 
     final filteredList = currentList.where((item) {
       String jenisKendaraan = _getJenisKendaraan(item);
       String sopirName = _getDriverName(item);
-      String secondaryRoleName = _isTpaView ? _getOperatorName(item) : _getPengawasName(item);
       
       return item.detail.toLowerCase().contains(_searchQuery.toLowerCase()) ||
           item.nomorKendaraan.toLowerCase().contains(_searchQuery.toLowerCase()) ||
           jenisKendaraan.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          sopirName.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          secondaryRoleName.toLowerCase().contains(_searchQuery.toLowerCase());
+          sopirName.toLowerCase().contains(_searchQuery.toLowerCase());
     }).toList();
 
     return Scaffold(
@@ -334,7 +330,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           IconButton(
             icon: const Icon(Icons.picture_as_pdf, color: Color(0xFF22C55E)),
             tooltip: 'Ekspor PDF',
-            onPressed: () => _exportToPdf(currentList, _isTpaView ? 'Data_TPA' : 'Data_BBM', _isTpaView),
+            onPressed: () => _exportToPdf(currentList, kategoriName),
           ),
           IconButton(
             icon: const Icon(Icons.logout, color: Colors.redAccent),
@@ -350,7 +346,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
       ),
       body: Column(
         children: [
-          // TAB MENU
+          // 3 TAB MENU (TPA, BBM, SERVIS)
           Container(
             padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
             color: const Color(0xFF1E293B),
@@ -358,40 +354,64 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               children: [
                 Expanded(
                   child: GestureDetector(
-                    onTap: () => setState(() => _isTpaView = true),
+                    onTap: () => setState(() => _selectedTab = 0),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      padding: const EdgeInsets.symmetric(vertical: 10),
                       decoration: BoxDecoration(
-                        color: _isTpaView ? const Color(0xFF22C55E) : const Color(0xFF0F172A),
+                        color: _selectedTab == 0 ? const Color(0xFF22C55E) : const Color(0xFF0F172A),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       alignment: Alignment.center,
                       child: Text(
                         'Data TPA',
                         style: TextStyle(
-                          color: _isTpaView ? Colors.black : Colors.white70,
+                          color: _selectedTab == 0 ? Colors.black : Colors.white70,
                           fontWeight: FontWeight.bold,
+                          fontSize: 12,
                         ),
                       ),
                     ),
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 8),
                 Expanded(
                   child: GestureDetector(
-                    onTap: () => setState(() => _isTpaView = false),
+                    onTap: () => setState(() => _selectedTab = 1),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      padding: const EdgeInsets.symmetric(vertical: 10),
                       decoration: BoxDecoration(
-                        color: !_isTpaView ? const Color(0xFF22C55E) : const Color(0xFF0F172A),
+                        color: _selectedTab == 1 ? const Color(0xFF22C55E) : const Color(0xFF0F172A),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       alignment: Alignment.center,
                       child: Text(
                         'Data BBM',
                         style: TextStyle(
-                          color: !_isTpaView ? Colors.black : Colors.white70,
+                          color: _selectedTab == 1 ? Colors.black : Colors.white70,
                           fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => setState(() => _selectedTab = 2),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      decoration: BoxDecoration(
+                        color: _selectedTab == 2 ? const Color(0xFF22C55E) : const Color(0xFF0F172A),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        'Data Servis',
+                        style: TextStyle(
+                          color: _selectedTab == 2 ? Colors.black : Colors.white70,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
                         ),
                       ),
                     ),
@@ -422,7 +442,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             ),
           ),
 
-          // LISTVIEW
+          // LISTVIEW DATA
           Expanded(
             child: filteredList.isEmpty
                 ? const Center(
@@ -439,15 +459,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       
                       final jenisKendaraan = _getJenisKendaraan(item);
                       final sopirName = _getDriverName(item);
-                      final opName = _getOperatorName(item);
-                      final pengawasName = _getPengawasName(item);
 
-                      String headerText = '';
-                      if (_isTpaView) {
-                        headerText = '[$jenisKendaraan] ${item.nomorKendaraan.isNotEmpty ? item.nomorKendaraan : "Tanpa Plat"} • Sopir: $sopirName | Op: $opName';
-                      } else {
-                        headerText = '[$jenisKendaraan] ${item.nomorKendaraan.isNotEmpty ? item.nomorKendaraan : "Tanpa Plat"} • Sopir: $sopirName | Pengawas: $pengawasName';
-                      }
+                      String headerText = '[$jenisKendaraan] ${item.nomorKendaraan.isNotEmpty ? item.nomorKendaraan : "Tanpa Plat"} • Sopir: $sopirName';
 
                       return Container(
                         margin: const EdgeInsets.only(bottom: 12),
@@ -465,7 +478,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                                 color: const Color(0xFF22C55E).withOpacity(0.1),
                                 shape: BoxShape.circle,
                               ),
-                              child: const Icon(Icons.local_shipping, color: Color(0xFF22C55E), size: 20),
+                              child: Icon(
+                                _selectedTab == 2 ? Icons.build : Icons.local_shipping,
+                                color: const Color(0xFF22C55E),
+                                size: 20,
+                              ),
                             ),
                             const SizedBox(width: 12),
                             Expanded(

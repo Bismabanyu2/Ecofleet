@@ -4,8 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'bbm_screen.dart';
 import 'trash_screen.dart';
+import 'service_screen.dart'; // Import layar servis
 import 'login_screen.dart';
-import 'history_screen.dart'; // Import halaman history
+import 'history_screen.dart';
 import 'app_data.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -112,7 +113,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // --- FUNGSI LOGOUT KELUAR AKUN ---
   void _showLogoutDialog(BuildContext context) {
     showDialog(
       context: context,
@@ -128,11 +128,9 @@ class _HomeScreenState extends State<HomeScreen> {
             ElevatedButton(
               style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
               onPressed: () async {
-                // Logout dari Firebase Auth
                 await FirebaseAuth.instance.signOut();
                 if (!context.mounted) return;
                 
-                // Kembali ke halaman Login dan hapus semua riwayat navigasi sebelumnya
                 Navigator.pushAndRemoveUntil(
                   context,
                   MaterialPageRoute(builder: (context) => const LoginScreen()),
@@ -190,7 +188,6 @@ class _HomeScreenState extends State<HomeScreen> {
               ],
             ),
             actions: [
-              // IKON BERGERIGI (SETTINGS) DI KANAN ATAS UNTUK LOGOUT
               IconButton(
                 icon: const Icon(Icons.settings_outlined, color: Colors.green),
                 onPressed: () => _showLogoutDialog(context),
@@ -214,7 +211,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 const SizedBox(height: 16),
                 
-                // Card Hijau Status Shift dengan Hitung Mundur (Countdown)
+                // Status Shift Container
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
@@ -244,7 +241,6 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                           const SizedBox(height: 12),
                           
-                          // Badge Kendaraan Interaktif
                           GestureDetector(
                             onTap: () {
                               _showGantiKendaraanDialog(context);
@@ -276,6 +272,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 const SizedBox(height: 16),
 
+                // 1. MENU INPUT BBM
                 _buildMenuCard(
                   icon: Icons.local_gas_station_outlined,
                   title: 'Input BBM',
@@ -289,6 +286,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 const SizedBox(height: 12),
 
+                // 2. MENU INPUT PEMBUANGAN SAMPAH
                 _buildMenuCard(
                   icon: Icons.delete_outline,
                   title: 'Input Pembuangan Sampah',
@@ -297,6 +295,20 @@ class _HomeScreenState extends State<HomeScreen> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(builder: (context) => const TrashScreen()),
+                    );
+                  },
+                ),
+                const SizedBox(height: 12),
+
+                // 3. MENU INPUT SERVIS KENDARAAN (BARU)
+                _buildMenuCard(
+                  icon: Icons.build_outlined,
+                  title: 'Input Servis Kendaraan',
+                  subtitle: 'Catat riwayat perbaikan dan servis berkala kendaraan.',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const ServiceScreen()),
                     );
                   },
                 ),
@@ -311,7 +323,6 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     GestureDetector(
                       onTap: () {
-                        // Mengarahkan ke menu History ketika "Lihat Semua" diklik
                         Navigator.push(
                           context,
                           MaterialPageRoute(builder: (context) => const HistoryScreen()),
