@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart'; // Tambahkan ini untuk deteksi kIsWeb
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'home_screen.dart';
@@ -10,17 +11,23 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
   try {
-    // Inisialisasi Firebase menggunakan kredensial Web asli dari Firebase Console
-    await Firebase.initializeApp(
-      options: const FirebaseOptions(
-        apiKey: "AIzaSyBcFto_XVAXGsoPc10SH0tRkAtE-Dkaz3c",
-        authDomain: "bisma-ed323.firebaseapp.com",
-        projectId: "bisma-ed323",
-        storageBucket: "bisma-ed323.firebasestorage.app",
-        messagingSenderId: "828240171048",
-        appId: "1:828240171048:web:e0b4acfbfdded6cc01251d",
-      ),
-    );
+    if (kIsWeb) {
+      // INI UNTUK LAPTOP / BROWSER WEB
+      await Firebase.initializeApp(
+        options: const FirebaseOptions(
+          apiKey: "AIzaSyBcFto_XVAXGsoPc10SH0tRkAtE-Dkaz3c",
+          authDomain: "bisma-ed323.firebaseapp.com",
+          projectId: "bisma-ed323",
+          storageBucket: "bisma-ed323.firebasestorage.app",
+          messagingSenderId: "828240171048",
+          appId: "1:828240171048:web:e0b4acfbfdded6cc01251d",
+        ),
+      );
+    } else {
+      // INI UNTUK HP ANDROID
+      // Akan otomatis membaca file android/app/google-services.json
+      await Firebase.initializeApp();
+    }
   } catch (e) {
     debugPrint("Firebase initialization error: $e");
   }
@@ -106,7 +113,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   }
 }
 
-// Halaman History / Lihat Semua Aktivitas (Sudah Diperbarui dengan Thumbnail & Tombol Hapus)
+// Halaman History / Lihat Semua Aktivitas
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
 
@@ -152,7 +159,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
     );
   }
 
-  // Fungsi konfirmasi hapus riwayat (CRUD: Delete)
+  // Fungsi konfirmasi hapus riwayat
   void _confirmDelete(BuildContext context, ActivityModel activity) {
     showDialog(
       context: context,
