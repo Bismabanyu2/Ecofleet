@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // Import Firebase Firestore
 import 'app_data.dart';
 
 class TrashScreen extends StatefulWidget {
@@ -105,10 +106,28 @@ class _TrashScreenState extends State<TrashScreen> {
       }
     }
 
+    String detailText = '[$_selectedJenisKendaraan] ${_volumeController.text} Kg ($jenisSingkat) - Shift $_selectedShift - Sopir: $sopir - Op: $operator';
+
+    // 1. SIMPAN DATA KE CLOUD FIREBASE FIRESTORE (UNTUK DASHBOARD ADMIN)
+    try {
+      await FirebaseFirestore.instance.collection('activities').add({
+        'title': 'Pembuangan Sampah TPA Berhasil',
+        'time': _formattedTime,
+        'detail': detailText,
+        'nomorKendaraan': appData.nomorKendaraan,
+        'imageBase64': imageBase64String,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+      debugPrint("SUKSES: Data Sampah berhasil dikirim ke Firebase Firestore");
+    } catch (e) {
+      debugPrint("GAGAL mengirim data Sampah ke Firestore: $e");
+    }
+
+    // 2. SIMPAN DATA KE MEMORI LOKAL APP
     appData.addActivity(ActivityModel(
       title: 'Pembuangan Sampah Berhasil',
       time: _formattedTime,
-      detail: '[$_selectedJenisKendaraan] ${_volumeController.text} Kg ($jenisSingkat) - Shift $_selectedShift - Sopir: $sopir - Op: $operator',
+      detail: detailText,
       iconCode: Icons.delete_sweep.codePoint,
       imageBase64: imageBase64String,
       nomorKendaraan: appData.nomorKendaraan,

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // Import Firebase Firestore
 import 'app_data.dart';
 
 class BbmScreen extends StatefulWidget {
@@ -107,10 +108,28 @@ class _BbmScreenState extends State<BbmScreen> {
       }
     }
 
+    String detailText = '[$_selectedJenisKendaraan] ${_literController.text} Liter ($_selectedJenisBbm - Rp $harga) di $lokasi - Shift $_selectedShift - Sopir: $sopir - Pengawas: $pengawas';
+
+    // 1. SIMPAN DATA KE CLOUD FIREBASE FIRESTORE (UNTUK DASHBOARD ADMIN)
+    try {
+      await FirebaseFirestore.instance.collection('activities').add({
+        'title': 'Input BBM Berhasil',
+        'time': _formattedTime,
+        'detail': detailText,
+        'nomorKendaraan': appData.nomorKendaraan,
+        'imageBase64': imageBase64String,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+      debugPrint("SUKSES: Data BBM berhasil dikirim ke Firebase Firestore");
+    } catch (e) {
+      debugPrint("GAGAL mengirim data BBM ke Firestore: $e");
+    }
+
+    // 2. SIMPAN DATA KE MEMORI LOKAL APP
     appData.addActivity(ActivityModel(
       title: 'Input BBM Berhasil',
       time: _formattedTime,
-      detail: '[$_selectedJenisKendaraan] ${_literController.text} Liter ($_selectedJenisBbm - Rp $harga) di $lokasi - Shift $_selectedShift - Sopir: $sopir - Pengawas: $pengawas',
+      detail: detailText,
       iconCode: Icons.local_gas_station.codePoint,
       imageBase64: imageBase64String,
       nomorKendaraan: appData.nomorKendaraan,

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // Import Firebase Firestore
 import 'app_data.dart';
 
 class ServiceScreen extends StatefulWidget {
@@ -120,12 +121,28 @@ class _ServiceScreenState extends State<ServiceScreen> {
       }
     }
 
-    // Menambahkan aktivitas Servis ke appData
+    String detailText = '[$_selectedJenisKendaraan] $_selectedJenisServis (Rp $biaya) di $bengkel - Shift $_selectedShift - Sopir: $sopir - Ket: $ket';
+
+    // 1. SIMPAN DATA KE CLOUD FIREBASE FIRESTORE (UNTUK DASHBOARD ADMIN)
+    try {
+      await FirebaseFirestore.instance.collection('activities').add({
+        'title': 'Servis Kendaraan Berhasil',
+        'time': _formattedTime,
+        'detail': detailText,
+        'nomorKendaraan': appData.nomorKendaraan,
+        'imageBase64': imageBase64String,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+      debugPrint("SUKSES: Data Servis berhasil dikirim ke Firebase Firestore");
+    } catch (e) {
+      debugPrint("GAGAL mengirim data Servis ke Firestore: $e");
+    }
+
+    // 2. SIMPAN DATA KE MEMORI LOKAL APP
     appData.addActivity(ActivityModel(
       title: 'Servis Kendaraan Berhasil',
       time: _formattedTime,
-      detail:
-          '[$_selectedJenisKendaraan] $_selectedJenisServis (Rp $biaya) di $bengkel - Shift $_selectedShift - Sopir: $sopir - Ket: $ket',
+      detail: detailText,
       iconCode: Icons.build.codePoint,
       imageBase64: imageBase64String,
       nomorKendaraan: appData.nomorKendaraan,
