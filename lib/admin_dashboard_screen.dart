@@ -1,9 +1,10 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
-import 'app_data.dart';
 import 'login_screen.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
@@ -14,345 +15,314 @@ class AdminDashboardScreen extends StatefulWidget {
 }
 
 class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
-  // 0: TPA, 1: BBM, 2: Servis
-  int _selectedTab = 0;
+  int _selectedTab = 0; // 0 = Sampah TPA, 1 = BBM, 2 = Servis Kendaraan
   String _searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
 
-  String _getJenisKendaraan(ActivityModel item) {
-    final detailLower = item.detail.toLowerCase();
-    if (detailLower.contains('[pick up]')) return 'Pick Up';
-    if (detailLower.contains('[cator]')) return 'Cator';
-    if (detailLower.contains('[truk]')) return 'Truk';
-    return 'Kendaraan';
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
-  String _getDriverName(ActivityModel item) {
-    if (item.detail.contains('Sopir:')) {
-      final parts = item.detail.split('Sopir:');
-      if (parts.length > 1) {
-        final namePart = parts[1].split('-')[0];
-        return namePart.trim();
+  // Helper mendapatkan jenis kendaraan dari string detail
+  String _getJenisKendaraan(String detail) {
+    if (detail.startsWith('[')) {
+      int closeIndex = detail.indexOf(']');
+      if (closeIndex != -1) {
+        return detail.substring(1, closeIndex);
       }
     }
-    return '-';
+    return 'Kendaraan Ops';
   }
 
-  String _getOperatorName(ActivityModel item) {
-    if (item.detail.contains('Op:')) {
-      final parts = item.detail.split('Op:');
+  // Helper mendapatkan nama sopir dari string detail
+  String _getDriverName(String detail) {
+    if (detail.contains('Sopir:')) {
+      final parts = detail.split('Sopir:');
       if (parts.length > 1) {
-        return parts[1].trim();
+        final driverPart = parts[1].trim();
+        final endPart = driverPart.split(' - ')[0].split(' • ')[0];
+        return endPart.isNotEmpty ? endPart : 'Sopir';
       }
     }
-    return '-';
+    return 'Sopir';
   }
 
-  String _getPengawasName(ActivityModel item) {
-    if (item.detail.contains('Pengawas:')) {
-      final parts = item.detail.split('Pengawas:');
-      if (parts.length > 1) {
-        return parts[1].replaceAll(')', '').trim();
-      }
-    }
-    return '-';
-  }
-
-  Widget _buildImagePreview(String? base64String) {
-    if (base64String == null || base64String.isEmpty) {
-      return Container(
-        height: 100,
-        width: double.infinity,
-        color: Colors.black26,
-        alignment: Alignment.center,
-        child: const Text(
-          'Tidak ada gambar bukti yang di-upload.',
-          style: TextStyle(color: Colors.white54, fontSize: 12),
-        ),
-      );
-    }
-
-    try {
-      final bytes = base64Decode(base64String);
-      return Image.memory(
-        bytes,
-        height: 180,
-        width: double.infinity,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) {
-          return Container(
-            height: 100,
-            alignment: Alignment.center,
-            color: Colors.black26,
-            child: const Text(
-              'Gagal memuat gambar bukti.',
-              style: TextStyle(color: Colors.white54, fontSize: 12),
-            ),
-          );
-        },
-      );
-    } catch (e) {
-      return Container(
-        height: 100,
-        alignment: Alignment.center,
-        color: Colors.black26,
-        child: const Text(
-          'Format gambar tidak valid.',
-          style: TextStyle(color: Colors.white54, fontSize: 12),
-        ),
-      );
-    }
-  }
-
-  void _deleteActivity(ActivityModel targetItem) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1E293B),
-        title: const Text('Hapus Data', style: TextStyle(color: Colors.white)),
-        content: const Text(
-          'Apakah Anda yakin ingin menghapus data aktivitas ini?',
-          style: TextStyle(color: Colors.white70),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Batal', style: TextStyle(color: Colors.grey)),
-          ),
-          TextButton(
-            onPressed: () {
-              setState(() {
-                appData.activities.remove(targetItem);
-              });
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Data berhasil dihapus'),
-                  backgroundColor: Colors.red,
-                ),
-              );
-            },
-            child: const Text('Hapus', style: TextStyle(color: Colors.redAccent)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showDetailDialog(BuildContext context, ActivityModel item) {
-    String jenisKendaraan = _getJenisKendaraan(item);
-    String sopirName = _getDriverName(item);
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1E293B),
-        title: Text(
-          item.title,
-          style: const TextStyle(color: Color(0xFF22C55E), fontWeight: FontWeight.bold),
-        ),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min, // DIBENARKAN DI SINI
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Jenis Kendaraan: $jenisKendaraan',
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Nama Sopir: $sopirName',
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
-                ),
-                const SizedBox(height: 8),
-                Text('Waktu: ${item.time}', style: const TextStyle(color: Colors.white70, fontSize: 13)),
-                const SizedBox(height: 8),
-                Text(
-                  'No. Plat: ${item.nomorKendaraan.isNotEmpty ? item.nomorKendaraan : "-"}',
-                  style: const TextStyle(color: Colors.white, fontSize: 13),
-                ),
-                const SizedBox(height: 8),
-                Text('Detail: ${item.detail}', style: const TextStyle(color: Colors.white70, fontSize: 13)),
-                const SizedBox(height: 12),
-                const Text(
-                  'Bukti Foto Hasil:',
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
-                ),
-                const SizedBox(height: 6),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: _buildImagePreview(item.imageBase64),
-                ),
-              ],
-            ),
-          ),
-        ),
-        actions: [
-          TextButton.icon(
-            onPressed: () {
-              Navigator.pop(context);
-              _deleteActivity(item);
-            },
-            icon: const Icon(Icons.delete, color: Colors.redAccent, size: 18),
-            label: const Text('Hapus', style: TextStyle(color: Colors.redAccent)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF22C55E)),
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Tutup', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _exportToPdf(List<ActivityModel> list, String kategori) async {
+  // FUNGSI EKSPOR LAPORAN KE PDF
+  Future<void> _exportPdf(List<QueryDocumentSnapshot> docs) async {
     final pdf = pw.Document();
-    List<List<dynamic>> tableData = [];
 
-    for (int i = 0; i < list.length; i++) {
-      final item = list[i];
-      String jenisKendaraan = _getJenisKendaraan(item);
-      String sopirName = _getDriverName(item);
+    String tabTitle = _selectedTab == 0
+        ? 'Laporan Pembuangan Sampah TPA'
+        : _selectedTab == 1
+            ? 'Laporan Pengisian BBM'
+            : 'Laporan Servis Kendaraan';
 
-      pw.Widget imageWidget;
-      if (item.imageBase64 != null && item.imageBase64!.isNotEmpty) {
-        try {
-          final decodedBytes = base64Decode(item.imageBase64!);
-          imageWidget = pw.Container(
-            width: 50,
-            height: 50,
-            child: pw.Image(pw.MemoryImage(decodedBytes), fit: pw.BoxFit.cover),
-          );
-        } catch (e) {
-          imageWidget = pw.Text('Error Gambar', style: const pw.TextStyle(fontSize: 8));
-        }
-      } else {
-        imageWidget = pw.Text('Tidak Ada Foto', style: const pw.TextStyle(fontSize: 8));
-      }
-
-      tableData.add([
-        '${i + 1}',
-        jenisKendaraan,
-        sopirName,
-        item.time,
-        item.nomorKendaraan.isNotEmpty ? item.nomorKendaraan : '-',
-        item.detail,
-        imageWidget,
-      ]);
-    }
+    final pdfData = docs.map((doc) {
+      final data = doc.data() as Map<String, dynamic>;
+      final time = data['time'] ?? '-';
+      final plat = data['nomorKendaraan'] ?? '-';
+      final detail = data['detail'] ?? '-';
+      final sopir = _getDriverName(detail);
+      final jenis = _getJenisKendaraan(detail);
+      return [time, plat, jenis, sopir, detail];
+    }).toList();
 
     pdf.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
-        build: (pw.Context context) => [
-          pw.Header(
-            level: 0,
-            child: pw.Text(
-              'Laporan Operasional EcoFleet - $kategori',
-              style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold),
+        margin: const pw.EdgeInsets.all(24),
+        build: (pw.Context context) {
+          return [
+            pw.Header(
+              level: 0,
+              child: pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text('EcoFleet - $tabTitle',
+                      style: pw.TextStyle(
+                          fontSize: 18, fontWeight: pw.FontWeight.bold)),
+                  pw.Text(
+                    'Total Data: ${pdfData.length}',
+                    style: const pw.TextStyle(fontSize: 12, color: PdfColors.grey700),
+                  ),
+                ],
+              ),
             ),
-          ),
-          pw.SizedBox(height: 10),
-          pw.Table.fromTextArray(
-            headers: [
-              'No', 
-              'Kendaraan',
-              'Nama Sopir', 
-              'Waktu', 
-              'No Plat', 
-              'Detail Informasi', 
-              'Bukti Foto'
-            ],
-            data: tableData,
-            cellAlignment: pw.Alignment.centerLeft,
-            cellAlignments: {0: pw.Alignment.center, 6: pw.Alignment.center},
-          ),
-        ],
+            pw.SizedBox(height: 12),
+            pw.Table.fromTextArray(
+              headers: ['Waktu', 'No. Plat', 'Jenis', 'Sopir', 'Detail Keterangan'],
+              data: pdfData,
+              border: pw.TableBorder.all(color: PdfColors.grey400, width: 0.5),
+              headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white),
+              headerDecoration: const pw.BoxDecoration(color: PdfColors.green800),
+              rowDecoration: const pw.BoxDecoration(
+                border: pw.Border(bottom: pw.BorderSide(color: PdfColors.grey300, width: 0.5)),
+              ),
+              cellAlignment: pw.Alignment.centerLeft,
+              cellStyle: const pw.TextStyle(fontSize: 9),
+            ),
+          ];
+        },
       ),
     );
 
     await Printing.layoutPdf(
       onLayout: (PdfPageFormat format) async => pdf.save(),
-      name: 'Laporan_EcoFleet_$kategori.pdf',
+      name: 'Laporan_EcoFleet_${DateTime.now().millisecondsSinceEpoch}.pdf',
+    );
+  }
+
+  // FUNGSI KONFIRMASI LOGOUT / KELUAR
+  void _logout() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1E293B),
+        title: const Text('Konfirmasi Keluar', style: TextStyle(color: Colors.white)),
+        content: const Text('Apakah Anda yakin ingin keluar dari akun Admin?', style: TextStyle(color: Colors.white70)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Batal', style: TextStyle(color: Colors.white54)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (context) => const LoginScreen()),
+                (route) => false,
+              );
+            },
+            child: const Text('Keluar', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Dialog Tampil Detail Foto & Keterangan
+  void _showDetailDialog(BuildContext context, Map<String, dynamic> data) {
+    final title = data['title'] ?? 'Detail Aktivitas';
+    final time = data['time'] ?? '-';
+    final detail = data['detail'] ?? '-';
+    final plat = data['nomorKendaraan'] ?? 'Tanpa Plat';
+    final imageBase64 = data['imageBase64'];
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        Uint8List? imageBytes;
+        if (imageBase64 != null && imageBase64.toString().isNotEmpty) {
+          try {
+            imageBytes = base64Decode(imageBase64);
+          } catch (e) {
+            debugPrint("Error decode base64: $e");
+          }
+        }
+
+        return Dialog(
+          backgroundColor: const Color(0xFF1E293B),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          color: Color(0xFF22C55E),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close, color: Colors.white70),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ],
+                  ),
+                  const Divider(color: Colors.white24),
+                  const SizedBox(height: 8),
+                  
+                  // Label Plat Nomor
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.withOpacity(0.2),
+                      border: Border.all(color: Colors.amber),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      'Plat: $plat',
+                      style: const TextStyle(color: Colors.amber, fontWeight: FontWeight.bold, fontSize: 12),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  Text('Waktu: $time', style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                  const SizedBox(height: 8),
+                  const Text('Detail Keterangan:', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                  const SizedBox(height: 4),
+                  Text(detail, style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 13)),
+                  const SizedBox(height: 16),
+
+                  // Tampilkan Foto Bukti
+                  if (imageBytes != null) ...[
+                    const Text('Bukti Foto:', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                    const SizedBox(height: 8),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.memory(
+                        imageBytes,
+                        width: double.infinity,
+                        height: 200,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  ] else ...[
+                    Container(
+                      height: 100,
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: Colors.white10,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Center(
+                        child: Text(
+                          'Tidak ada foto bukti',
+                          style: TextStyle(color: Colors.white38, fontSize: 12),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: appData,
-      builder: (context, child) {
-        final tpaList = appData.activities
-            .where((act) => act.title.toLowerCase().contains('sampah') || act.title.toLowerCase().contains('tpa'))
-            .toList();
-
-        final bbmList = appData.activities
-            .where((act) => act.title.toLowerCase().contains('bbm'))
-            .toList();
-
-        final serviceList = appData.activities
-            .where((act) => act.title.toLowerCase().contains('servis') || act.title.toLowerCase().contains('service'))
-            .toList();
-
-        List<ActivityModel> currentList;
-        String kategoriName;
-        if (_selectedTab == 0) {
-          currentList = tpaList;
-          kategoriName = 'Data_TPA';
-        } else if (_selectedTab == 1) {
-          currentList = bbmList;
-          kategoriName = 'Data_BBM';
-        } else {
-          currentList = serviceList;
-          kategoriName = 'Data_Servis';
-        }
-
-        final filteredList = currentList.where((item) {
-          String jenisKendaraan = _getJenisKendaraan(item);
-          String sopirName = _getDriverName(item);
-          
-          return item.detail.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-              item.nomorKendaraan.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-              jenisKendaraan.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-              sopirName.toLowerCase().contains(_searchQuery.toLowerCase());
-        }).toList();
-
-        return Scaffold(
-          backgroundColor: const Color(0xFF0F172A),
-          appBar: AppBar(
-            backgroundColor: const Color(0xFF1E293B),
-            elevation: 0,
-            title: const Text(
-              'Admin Dashboard',
-              style: TextStyle(color: Color(0xFF22C55E), fontWeight: FontWeight.bold, fontSize: 18),
-            ),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.picture_as_pdf, color: Color(0xFF22C55E)),
-                tooltip: 'Ekspor PDF',
-                onPressed: () => _exportToPdf(currentList, kategoriName),
-              ),
-              IconButton(
-                icon: const Icon(Icons.logout, color: Colors.redAccent),
-                tooltip: 'Logout',
-                onPressed: () {
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(builder: (context) => const LoginScreen()),
-                  );
-                },
-              ),
-            ],
+    return Scaffold(
+      backgroundColor: const Color(0xFF0F172A), // Theme gelap khas Admin
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF1E293B),
+        elevation: 0,
+        title: const Text(
+          'Dashboard Admin (Realtime)',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh, color: Color(0xFF22C55E)),
+            tooltip: 'Refresh',
+            onPressed: () {
+              setState(() {});
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Memperbarui data...'), duration: Duration(milliseconds: 800)),
+              );
+            },
           ),
-          body: Column(
+          IconButton(
+            icon: const Icon(Icons.logout_rounded, color: Colors.redAccent),
+            tooltip: 'Keluar / Logout',
+            onPressed: _logout,
+          ),
+        ],
+      ),
+      body: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('activities')
+            .orderBy('createdAt', descending: true)
+            .snapshots(),
+        builder: (context, snapshot) {
+          List<QueryDocumentSnapshot> filteredDocs = [];
+
+          if (snapshot.hasData && snapshot.data!.docs.isNotEmpty) {
+            final docs = snapshot.data!.docs;
+
+            filteredDocs = docs.where((doc) {
+              final data = doc.data() as Map<String, dynamic>;
+              final title = (data['title'] ?? '').toString().toLowerCase();
+              final detail = (data['detail'] ?? '').toString().toLowerCase();
+              final plat = (data['nomorKendaraan'] ?? '').toString().toLowerCase();
+
+              bool matchesTab = false;
+              if (_selectedTab == 0) {
+                matchesTab = title.contains('sampah') || title.contains('tpa');
+              } else if (_selectedTab == 1) {
+                matchesTab = title.contains('bbm');
+              } else {
+                matchesTab = title.contains('servis') || title.contains('service');
+              }
+
+              bool matchesSearch = detail.contains(_searchQuery.toLowerCase()) ||
+                  plat.contains(_searchQuery.toLowerCase());
+
+              return matchesTab && matchesSearch;
+            }).toList();
+          }
+
+          return Column(
             children: [
-              // 3 TAB MENU (TPA, BBM, SERVIS)
-              Container(
-                padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                color: const Color(0xFF1E293B),
+              const SizedBox(height: 12),
+
+              // Pilihan Tab (TPA, BBM, Servis)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Row(
                   children: [
                     Expanded(
@@ -363,6 +333,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                           decoration: BoxDecoration(
                             color: _selectedTab == 0 ? const Color(0xFF22C55E) : const Color(0xFF0F172A),
                             borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: const Color(0xFF22C55E)),
                           ),
                           alignment: Alignment.center,
                           child: Text(
@@ -385,6 +356,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                           decoration: BoxDecoration(
                             color: _selectedTab == 1 ? const Color(0xFF22C55E) : const Color(0xFF0F172A),
                             borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: const Color(0xFF22C55E)),
                           ),
                           alignment: Alignment.center,
                           child: Text(
@@ -407,6 +379,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                           decoration: BoxDecoration(
                             color: _selectedTab == 2 ? const Color(0xFF22C55E) : const Color(0xFF0F172A),
                             borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: const Color(0xFF22C55E)),
                           ),
                           alignment: Alignment.center,
                           child: Text(
@@ -424,117 +397,175 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 ),
               ),
 
-              // PENCARIAN
+              const SizedBox(height: 12),
+
+              // Baris Pencarian & Tombol Ekspor PDF
               Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: TextField(
-                  onChanged: (val) => setState(() => _searchQuery = val),
-                  style: const TextStyle(color: Colors.white, fontSize: 14),
-                  decoration: InputDecoration(
-                    hintText: 'Cari kendaraan, plat, nama, atau detail...',
-                    hintStyle: const TextStyle(color: Colors.white38),
-                    prefixIcon: const Icon(Icons.search, color: Colors.white38),
-                    filled: true,
-                    fillColor: const Color(0xFF1E293B),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: BorderSide.none,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _searchController,
+                        onChanged: (val) => setState(() => _searchQuery = val),
+                        style: const TextStyle(color: Colors.white),
+                        decoration: InputDecoration(
+                          hintText: 'Cari plat, sopir, atau ket...',
+                          hintStyle: const TextStyle(color: Colors.white38, fontSize: 13),
+                          prefixIcon: const Icon(Icons.search, color: Colors.white38),
+                          filled: true,
+                          fillColor: const Color(0xFF1E293B),
+                          contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                      ),
                     ),
-                    contentPadding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
+                    const SizedBox(width: 8),
+                    ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF22C55E),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      onPressed: filteredDocs.isEmpty ? null : () => _exportPdf(filteredDocs),
+                      icon: const Icon(Icons.picture_as_pdf, color: Colors.black, size: 18),
+                      label: const Text(
+                        'PDF',
+                        style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 12),
+                      ),
+                    ),
+                  ],
                 ),
               ),
 
-              // LISTVIEW DATA
+              const SizedBox(height: 12),
+
+              // Daftar Item Laporan
               Expanded(
-                child: filteredList.isEmpty
-                    ? const Center(
+                child: Builder(
+                  builder: (context) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator(color: Color(0xFF22C55E)));
+                    }
+
+                    if (snapshot.hasError) {
+                      return Center(
                         child: Text(
-                          'Belum ada data tersedia',
-                          style: TextStyle(color: Colors.white70, fontSize: 14),
+                          'Error: ${snapshot.error}',
+                          style: const TextStyle(color: Colors.redAccent),
                         ),
-                      )
-                    : ListView.builder(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        itemCount: filteredList.length,
-                        itemBuilder: (context, index) {
-                          final item = filteredList[index];
-                          
-                          final jenisKendaraan = _getJenisKendaraan(item);
-                          final sopirName = _getDriverName(item);
+                      );
+                    }
 
-                          String headerText = '[$jenisKendaraan] ${item.nomorKendaraan.isNotEmpty ? item.nomorKendaraan : "Tanpa Plat"} • Sopir: $sopirName';
+                    if (filteredDocs.isEmpty) {
+                      return const Center(
+                        child: Text(
+                          'Tidak ada data laporan yang sesuai',
+                          style: TextStyle(color: Colors.white38, fontSize: 14),
+                        ),
+                      );
+                    }
 
-                          return Container(
-                            margin: const EdgeInsets.only(bottom: 12),
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF1E293B),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Colors.white10),
-                            ),
-                            child: Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.all(10),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF22C55E).withOpacity(0.1),
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: Icon(
-                                    _selectedTab == 2 ? Icons.build : Icons.local_shipping,
-                                    color: const Color(0xFF22C55E),
-                                    size: 20,
-                                  ),
+                    return ListView.builder(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      itemCount: filteredDocs.length,
+                      itemBuilder: (context, index) {
+                        final doc = filteredDocs[index];
+                        final data = doc.data() as Map<String, dynamic>;
+
+                        final detail = data['detail'] ?? '';
+                        final time = data['time'] ?? '';
+                        final plat = data['nomorKendaraan'] ?? '';
+
+                        final jenisKendaraan = _getJenisKendaraan(detail);
+                        final sopirName = _getDriverName(detail);
+
+                        String headerText = '[$jenisKendaraan] ${plat.isNotEmpty ? plat : "Tanpa Plat"} • Sopir: $sopirName';
+
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF1E293B),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.white10),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF22C55E).withOpacity(0.1),
+                                  shape: BoxShape.circle,
                                 ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        headerText,
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 13,
-                                        ),
+                                child: Icon(
+                                  _selectedTab == 0
+                                      ? Icons.delete_sweep
+                                      : _selectedTab == 1
+                                          ? Icons.local_gas_station
+                                          : Icons.build,
+                                  color: const Color(0xFF22C55E),
+                                  size: 20,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      headerText,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13,
                                       ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        item.detail,
-                                        style: const TextStyle(color: Colors.white70, fontSize: 12),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        item.time,
-                                        style: const TextStyle(color: Colors.white70, fontSize: 10),
-                                      ),
-                                    ],
-                                  ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      detail,
+                                      style: const TextStyle(color: Colors.white70, fontSize: 12),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      time,
+                                      style: const TextStyle(color: Colors.white38, fontSize: 10),
+                                    ),
+                                  ],
                                 ),
-                                IconButton(
-                                  icon: const Icon(Icons.visibility_outlined, color: Colors.blueAccent, size: 20),
-                                  onPressed: () => _showDetailDialog(context, item),
-                                  tooltip: 'Lihat Detail & Bukti Foto',
-                                ),
-                                IconButton(
-                                  icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
-                                  onPressed: () => _deleteActivity(item),
-                                  tooltip: 'Hapus Data',
-                                ),
-                              ],
-                            ),
-                          );
-                        },
-                      ),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.visibility_outlined, color: Colors.blueAccent, size: 20),
+                                onPressed: () => _showDetailDialog(context, data),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
+                                onPressed: () async {
+                                  // Hapus data langsung dari Firestore
+                                  await doc.reference.delete();
+                                  if (!mounted) return;
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Data berhasil dihapus')),
+                                  );
+                                },
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
               ),
             ],
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 }
