@@ -49,7 +49,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     return 'Sopir';
   }
 
-  // FUNGSI EKSPOR LAPORAN KE PDF
+  // FUNGSI EKSPOR LAPORAN KE PDF (DENGAN BUKTI FOTO / IMAGE)
   Future<void> _exportPdf(List<QueryDocumentSnapshot> docs) async {
     final pdf = pw.Document();
 
@@ -59,22 +59,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             ? 'Laporan Pengisian BBM'
             : 'Laporan Servis Kendaraan';
 
-    final pdfData = docs.map((doc) {
-      final data = doc.data() as Map<String, dynamic>;
-      final time = data['time'] ?? '-';
-      final plat = data['nomorKendaraan'] ?? '-';
-      final detail = data['detail'] ?? '-';
-      final sopir = _getDriverName(detail);
-      final jenis = _getJenisKendaraan(detail);
-      return [time, plat, jenis, sopir, detail];
-    }).toList();
-
     pdf.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(24),
         build: (pw.Context context) {
           return [
+            // HEADER LAPORAN
             pw.Header(
               level: 0,
               child: pw.Row(
@@ -82,26 +73,105 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 children: [
                   pw.Text('EcoFleet - $tabTitle',
                       style: pw.TextStyle(
-                          fontSize: 18, fontWeight: pw.FontWeight.bold)),
+                          fontSize: 16, fontWeight: pw.FontWeight.bold)),
                   pw.Text(
-                    'Total Data: ${pdfData.length}',
-                    style: const pw.TextStyle(fontSize: 12, color: PdfColors.grey700),
+                    'Total Data: ${docs.length}',
+                    style: const pw.TextStyle(fontSize: 11, color: PdfColors.grey700),
                   ),
                 ],
               ),
             ),
             pw.SizedBox(height: 12),
-            pw.Table.fromTextArray(
-              headers: ['Waktu', 'No. Plat', 'Jenis', 'Sopir', 'Detail Keterangan'],
-              data: pdfData,
+
+            // TABEL LAPORAN BESERTA KOLOM FOTO BUKTI
+            pw.Table(
               border: pw.TableBorder.all(color: PdfColors.grey400, width: 0.5),
-              headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white),
-              headerDecoration: const pw.BoxDecoration(color: PdfColors.green800),
-              rowDecoration: const pw.BoxDecoration(
-                border: pw.Border(bottom: pw.BorderSide(color: PdfColors.grey300, width: 0.5)),
-              ),
-              cellAlignment: pw.Alignment.centerLeft,
-              cellStyle: const pw.TextStyle(fontSize: 9),
+              columnWidths: {
+                0: const pw.FlexColumnWidth(2),   // Waktu
+                1: const pw.FlexColumnWidth(1.2), // Plat
+                2: const pw.FlexColumnWidth(1),   // Jenis
+                3: const pw.FlexColumnWidth(1.2), // Sopir
+                4: const pw.FlexColumnWidth(3),   // Detail
+                5: const pw.FlexColumnWidth(1.5), // Foto Bukti
+              },
+              children: [
+                // HEADER TABEL
+                pw.TableRow(
+                  decoration: const pw.BoxDecoration(color: PdfColors.green800),
+                  children: [
+                    'Waktu', 'No. Plat', 'Jenis', 'Sopir', 'Detail Keterangan', 'Foto Bukti'
+                  ].map((text) => pw.Padding(
+                        padding: const pw.EdgeInsets.all(6),
+                        child: pw.Text(
+                          text,
+                          style: pw.TextStyle(
+                              fontWeight: pw.FontWeight.bold,
+                              color: PdfColors.white,
+                              fontSize: 9),
+                          textAlign: pw.TextAlign.center,
+                        ),
+                      )).toList(),
+                ),
+
+                // BARIS DATA BERSAMA GAMBAR
+                ...docs.map((doc) {
+                  final data = doc.data() as Map<String, dynamic>;
+                  final time = data['time'] ?? '-';
+                  final plat = data['nomorKendaraan'] ?? '-';
+                  final detail = data['detail'] ?? '-';
+                  final sopir = _getDriverName(detail);
+                  final jenis = _getJenisKendaraan(detail);
+                  final imageBase64 = data['imageBase64'];
+
+                  // Decode Base64 ke Widget Gambar PDF
+                  pw.Widget imageWidget;
+                  if (imageBase64 != null && imageBase64.toString().isNotEmpty) {
+                    try {
+                      final Uint8List imageBytes = base64Decode(imageBase64);
+                      final image = pw.MemoryImage(imageBytes);
+                      imageWidget = pw.Container(
+                        height: 40,
+                        width: 40,
+                        child: pw.Image(image, fit: pw.BoxFit.cover),
+                      );
+                    } catch (e) {
+                      imageWidget = pw.Text('Gagal Muat', style: const pw.TextStyle(fontSize: 8, color: PdfColors.red));
+                    }
+                  } else {
+                    imageWidget = pw.Text('Tanpa Foto', style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600));
+                  }
+
+                  return pw.TableRow(
+                    verticalAlignment: pw.TableCellVerticalAlignment.middle,
+                    children: [
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(5),
+                        child: pw.Text(time, style: const pw.TextStyle(fontSize: 8)),
+                      ),
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(5),
+                        child: pw.Text(plat, style: const pw.TextStyle(fontSize: 8)),
+                      ),
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(5),
+                        child: pw.Text(jenis, style: const pw.TextStyle(fontSize: 8)),
+                      ),
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(5),
+                        child: pw.Text(sopir, style: const pw.TextStyle(fontSize: 8)),
+                      ),
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(5),
+                        child: pw.Text(detail, style: const pw.TextStyle(fontSize: 8)),
+                      ),
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.all(4),
+                        child: pw.Center(child: imageWidget),
+                      ),
+                    ],
+                  );
+                }),
+              ],
             ),
           ];
         },
@@ -262,7 +332,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         backgroundColor: const Color(0xFF1E293B),
         elevation: 0,
         title: const Text(
-          'Dashboard Admin (Realtime)',
+          'Dashboard Admin',
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
         ),
         actions: [
