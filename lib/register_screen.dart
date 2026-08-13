@@ -110,7 +110,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             children: [
               const Text('Daftar Akun EcoFleet', style: AppStyles.titleStyle),
               const SizedBox(height: 4),
-              const Text('Daftar akun online dengan Firebase', style: AppStyles.subtitleStyle, textAlign: TextAlign.center),
+              const Text('Daftar akun email aktif anda', style: AppStyles.subtitleStyle, textAlign: TextAlign.center),
               const SizedBox(height: 24),
 
               Container(

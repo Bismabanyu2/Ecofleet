@@ -86,7 +86,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   color: AppStyles.lightGreenBg,
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.local_shipping, size: 50, color: AppStyles.primaryGreen),
+                child: const Icon(Icons.local_shipping, size: 50, color: Color.fromARGB(255, 25, 122, 52)),
               ),
               const SizedBox(height: 16),
               const Text('EcoFleet Login', style: AppStyles.titleStyle),
